@@ -297,4 +297,3 @@ with st.expander("📌 Novo Evento", expanded=False):
         conn.commit()
         st.success("Evento criado!")
         st.rerun()
-        
