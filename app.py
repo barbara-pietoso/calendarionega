@@ -9,6 +9,20 @@ from streamlit_calendar import calendar
 st.set_page_config(page_title="Agenda", layout="wide")
 
 # ---------------------------
+# HEADER COM LOGOS
+# ---------------------------
+col1, col2, col3 = st.columns([1,2,1])
+
+with col1:
+    st.image("https://github.com/barbara-pietoso/calendarionega/blob/main/logo_nega.png", use_container_width=True)
+
+with col2:
+    st.markdown("<h1 style='text-align: center;'>Agenda NEGA/UFRGS</h1>", unsafe_allow_html=True)
+
+with col3:
+    st.image("https://github.com/barbara-pietoso/calendarionega/blob/main/logo_ufrgs.png", use_container_width=True)
+
+# ---------------------------
 # CONEXÃO
 # ---------------------------
 @st.cache_resource
