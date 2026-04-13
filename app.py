@@ -191,16 +191,12 @@ if st.session_state.evento_id:
                 st.rerun()
 
 # =====================================================
-# 📂 ABAS
+# 📂 SEÇÕES RECOLHIDAS
 # =====================================================
 st.divider()
-tab1, tab2 = st.tabs(["👤 Pessoas", "📌 Novo Evento"])
 
-# ---------------------------
-# 👤 PESSOAS
-# ---------------------------
-with tab1:
-    st.header("👤 Cadastro de Pessoas")
+# 👤 PESSOAS (RECOLHIDO)
+with st.expander("👤 Pessoas", expanded=False):
 
     nome = st.text_input("Nome", key="p_nome")
     email = st.text_input("Email", key="p_email")
@@ -238,21 +234,16 @@ with tab1:
                         WHERE id=?
                     """, (novo_nome, novo_email, nova_funcao, row["id"]))
                     conn.commit()
-                    st.success("Atualizado!")
                     st.rerun()
 
             with col2:
                 if st.button("🗑️ Excluir", key=f"del_p_{row['id']}"):
                     c.execute("DELETE FROM pessoas WHERE id = ?", (row["id"],))
                     conn.commit()
-                    st.warning("Pessoa excluída!")
                     st.rerun()
 
-# ---------------------------
-# 📌 NOVO EVENTO
-# ---------------------------
-with tab2:
-    st.header("📌 Criar Evento")
+# 📌 NOVO EVENTO (RECOLHIDO)
+with st.expander("📌 Novo Evento", expanded=False):
 
     nome = st.text_input("Nome do Evento", key="novo_nome")
     data = st.date_input("Data", key="novo_data")
