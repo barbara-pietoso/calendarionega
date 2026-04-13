@@ -88,11 +88,12 @@ state = calendar(
 
 if state.get("eventClick"):
     st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
+    st.session_state.mostrar_add_part = False  # reset UI
 
 # =====================================================
-# 📌 DETALHES DO EVENTO
+# 📌 DETALHES DO EVENTO (SÓ SE CLICAR)
 # =====================================================
-if st.session_state.evento_id:
+if st.session_state.evento_id is not None:
 
     evento = pd.read_sql(
         "SELECT * FROM eventos WHERE id = ?",
@@ -101,7 +102,17 @@ if st.session_state.evento_id:
     ).iloc[0]
 
     st.divider()
-    st.subheader(f"📌 {evento['nome']}")
+
+    col_title, col_close = st.columns([5,1])
+
+    with col_title:
+        st.subheader(f"📌 {evento['nome']}")
+
+    with col_close:
+        if st.button("❌ Fechar", key="fechar_evento"):
+            st.session_state.evento_id = None
+            st.session_state.mostrar_add_part = False
+            st.rerun()
 
     tab_part, tab_edit = st.tabs(["👥 Participantes", "✏️ Editar Evento"])
 
@@ -109,8 +120,6 @@ if st.session_state.evento_id:
     # 👥 PARTICIPANTES
     # ---------------------------
     with tab_part:
-
-        st.subheader("👥 Participantes")
 
         pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
 
@@ -162,8 +171,6 @@ if st.session_state.evento_id:
     # ---------------------------
     with tab_edit:
 
-        st.subheader("✏️ Editar Evento")
-
         nome = st.text_input("Nome", evento["nome"], key="edit_nome")
         data = st.date_input("Data", pd.to_datetime(evento["data"]), key="edit_data")
         local = st.text_input("Local", evento["local"], key="edit_local")
@@ -187,7 +194,6 @@ if st.session_state.evento_id:
                 c.execute("DELETE FROM eventos WHERE id = ?", (evento["id"],))
                 conn.commit()
                 st.session_state.evento_id = None
-                st.warning("Evento excluído!")
                 st.rerun()
 
 # =====================================================
@@ -195,7 +201,6 @@ if st.session_state.evento_id:
 # =====================================================
 st.divider()
 
-# 👤 PESSOAS (RECOLHIDO)
 with st.expander("👤 Pessoas", expanded=False):
 
     nome = st.text_input("Nome", key="p_nome")
@@ -213,8 +218,6 @@ with st.expander("👤 Pessoas", expanded=False):
             st.rerun()
         except:
             st.warning("Pessoa já existe.")
-
-    st.subheader("📋 Pessoas cadastradas")
 
     pessoas_df = pd.read_sql("SELECT * FROM pessoas", conn)
 
@@ -242,7 +245,6 @@ with st.expander("👤 Pessoas", expanded=False):
                     conn.commit()
                     st.rerun()
 
-# 📌 NOVO EVENTO (RECOLHIDO)
 with st.expander("📌 Novo Evento", expanded=False):
 
     nome = st.text_input("Nome do Evento", key="novo_nome")
@@ -258,3 +260,4 @@ with st.expander("📌 Novo Evento", expanded=False):
         conn.commit()
         st.success("Evento criado!")
         st.rerun()
+        
