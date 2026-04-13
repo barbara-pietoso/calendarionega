@@ -67,46 +67,32 @@ if "evento_id" not in st.session_state:
 tab1, tab2, tab3 = st.tabs(["📅 Calendário", "👤 Pessoas", "📌 Novo Evento"])
 
 # =====================================================
-# 📅 CALENDÁRIO VISUAL
+# 📅 CALENDÁRIO
 # =====================================================
 with tab1:
     st.title("📅 Agenda de Eventos")
 
     eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
 
-    # 👉 FORMATO PARA O CALENDÁRIO
-    eventos_calendar = []
-
-    for _, row in eventos_df.iterrows():
-        eventos_calendar.append({
-            "title": row["nome"],
-            "start": row["data"],
-            "id": str(row["id"])
-        })
-
-    calendar_options = {
-        "initialView": "dayGridMonth",
-        "locale": "pt-br",
-        "height": 650,
-    }
+    eventos_calendar = [
+        {"title": row["nome"], "start": row["data"], "id": str(row["id"])}
+        for _, row in eventos_df.iterrows()
+    ]
 
     state = calendar(
         events=eventos_calendar,
-        options=calendar_options,
+        options={"initialView": "dayGridMonth", "locale": "pt-br", "height": 650},
         key="calendar"
     )
 
-    # 👉 CLIQUE NO EVENTO
+    # clique no evento
     if state.get("eventClick"):
-        evento_id = int(state["eventClick"]["event"]["id"])
-        st.session_state.evento_id = evento_id
+        st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
 
     # ---------------------------
     # DETALHES DO EVENTO
     # ---------------------------
     if st.session_state.evento_id:
-        st.divider()
-        st.subheader("📌 Detalhes do Evento")
 
         evento = pd.read_sql(
             "SELECT * FROM eventos WHERE id = ?",
@@ -114,19 +100,34 @@ with tab1:
             params=(st.session_state.evento_id,)
         ).iloc[0]
 
+        st.divider()
+        st.subheader("📌 Editar Evento")
+
         nome = st.text_input("Nome", evento["nome"])
         data = st.date_input("Data", pd.to_datetime(evento["data"]))
         local = st.text_input("Local", evento["local"])
         descricao = st.text_area("Descrição", evento["descricao"])
 
-        if st.button("💾 Salvar Alterações"):
-            c.execute("""
-            UPDATE eventos
-            SET nome=?, data=?, local=?, descricao=?
-            WHERE id=?
-            """, (nome, str(data), local, descricao, evento["id"]))
-            conn.commit()
-            st.success("Atualizado!")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("💾 Salvar"):
+                c.execute("""
+                    UPDATE eventos
+                    SET nome=?, data=?, local=?, descricao=?
+                    WHERE id=?
+                """, (nome, str(data), local, descricao, evento["id"]))
+                conn.commit()
+                st.success("Evento atualizado!")
+                st.rerun()
+
+        with col2:
+            if st.button("🗑️ Excluir Evento"):
+                c.execute("DELETE FROM eventos WHERE id = ?", (evento["id"],))
+                conn.commit()
+                st.session_state.evento_id = None
+                st.warning("Evento excluído!")
+                st.rerun()
 
         # ---------------------------
         # PARTICIPANTES
@@ -136,13 +137,20 @@ with tab1:
         pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
 
         participacoes = pd.read_sql("""
-            SELECT p.nome, pa.papel, pa.presenca
+            SELECT pa.id, p.nome, pa.papel, pa.presenca
             FROM participacoes pa
             JOIN pessoas p ON pa.pessoa_id = p.id
             WHERE pa.evento_id = ?
         """, conn, params=(evento["id"],))
 
-        st.dataframe(participacoes, use_container_width=True)
+        for _, row in participacoes.iterrows():
+            col1, col2 = st.columns([4,1])
+            col1.write(f"{row['nome']} - {row['papel']} ({row['presenca']})")
+
+            if col2.button("❌", key=f"del_part_{row['id']}"):
+                c.execute("DELETE FROM participacoes WHERE id = ?", (row["id"],))
+                conn.commit()
+                st.rerun()
 
         if not pessoas.empty:
             pessoa_dict = dict(zip(pessoas["nome"], pessoas["id"]))
@@ -157,10 +165,10 @@ with tab1:
                     VALUES (?, ?, ?, ?)
                 """, (pessoa_dict[pessoa_nome], evento["id"], papel, presenca))
                 conn.commit()
-                st.success("Adicionado!")
+                st.rerun()
 
 # =====================================================
-# 👤 PESSOAS
+# 👤 PESSOAS (COM EDIÇÃO)
 # =====================================================
 with tab2:
     st.header("👤 Cadastro de Pessoas")
@@ -177,11 +185,39 @@ with tab2:
             )
             conn.commit()
             st.success("Pessoa cadastrada!")
+            st.rerun()
         except:
             st.warning("Pessoa já existe.")
 
-    df_pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
-    st.dataframe(df_pessoas, use_container_width=True)
+    st.subheader("📋 Pessoas cadastradas")
+
+    pessoas_df = pd.read_sql("SELECT * FROM pessoas", conn)
+
+    for _, row in pessoas_df.iterrows():
+        with st.expander(f"{row['nome']}"):
+            novo_nome = st.text_input("Nome", row["nome"], key=f"nome_{row['id']}")
+            novo_email = st.text_input("Email", row["email"], key=f"email_{row['id']}")
+            nova_funcao = st.text_input("Função", row["funcao"], key=f"funcao_{row['id']}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("💾 Salvar", key=f"save_p_{row['id']}"):
+                    c.execute("""
+                        UPDATE pessoas
+                        SET nome=?, email=?, funcao=?
+                        WHERE id=?
+                    """, (novo_nome, novo_email, nova_funcao, row["id"]))
+                    conn.commit()
+                    st.success("Atualizado!")
+                    st.rerun()
+
+            with col2:
+                if st.button("🗑️ Excluir", key=f"del_p_{row['id']}"):
+                    c.execute("DELETE FROM pessoas WHERE id = ?", (row["id"],))
+                    conn.commit()
+                    st.warning("Pessoa excluída!")
+                    st.rerun()
 
 # =====================================================
 # 📌 NOVO EVENTO
@@ -201,4 +237,4 @@ with tab3:
         """, (nome, str(data), local, descricao))
         conn.commit()
         st.success("Evento criado!")
-        
+        st.rerun()
