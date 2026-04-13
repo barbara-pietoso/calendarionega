@@ -9,7 +9,8 @@ from streamlit_calendar import calendar
 st.set_page_config(
     page_title="Agenda NEGA/UFRGS", 
     page_icon='logo_nega.png',
-    layout="wide")
+    layout="wide"
+)
 
 # ---------------------------
 # HEADER
@@ -48,7 +49,6 @@ def create_tables():
     )
     """)
 
-    # 🔥 NOVO: PROJETOS COM COR
     c.execute("""
     CREATE TABLE IF NOT EXISTS projetos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,8 +63,7 @@ def create_tables():
         nome TEXT,
         data TEXT,
         local TEXT,
-        descricao TEXT,
-        projeto_id INTEGER
+        descricao TEXT
     )
     """)
 
@@ -83,6 +82,18 @@ def create_tables():
 create_tables()
 
 # ---------------------------
+# MIGRAÇÃO (ADICIONA COLUNA)
+# ---------------------------
+def atualizar_banco():
+    try:
+        c.execute("ALTER TABLE eventos ADD COLUMN projeto_id INTEGER")
+        conn.commit()
+    except:
+        pass
+
+atualizar_banco()
+
+# ---------------------------
 # ESTADO
 # ---------------------------
 if "evento_id" not in st.session_state:
@@ -95,7 +106,7 @@ if "fechar_evento_flag" not in st.session_state:
     st.session_state.fechar_evento_flag = False
 
 # =====================================================
-# 📅 CALENDÁRIO (COM CORES)
+# 📅 CALENDÁRIO COM CORES
 # =====================================================
 query = """
 SELECT e.*, p.cor
@@ -158,8 +169,9 @@ if st.session_state.evento_id is not None:
 
     tab_part, tab_edit = st.tabs(["👥 Participantes", "✏️ Editar Evento"])
 
-    # PARTICIPANTES (igual ao seu)
+    # 👥 PARTICIPANTES
     with tab_part:
+
         pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
 
         participacoes = pd.read_sql("""
@@ -178,7 +190,7 @@ if st.session_state.evento_id is not None:
                 conn.commit()
                 st.rerun()
 
-    # EDITAR EVENTO (agora com projeto)
+    # ✏️ EDITAR EVENTO
     with tab_edit:
 
         nome = st.text_input("Nome", evento["nome"])
@@ -210,40 +222,41 @@ if st.session_state.evento_id is not None:
 # =====================================================
 st.divider()
 
-# 👤 PESSOAS (igual ao seu)
+# 👤 PESSOAS
 with st.expander("👤 Pessoas", expanded=False):
+
     nome = st.text_input("Nome")
     email = st.text_input("Email")
     funcao = st.text_input("Função")
 
     if st.button("Salvar Pessoa"):
         try:
-            c.execute("INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
-                      (nome, email, funcao))
+            c.execute(
+                "INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
+                (nome, email, funcao)
+            )
             conn.commit()
             st.rerun()
         except:
             st.warning("Pessoa já existe.")
 
-# 📁 PROJETOS (NOVO)
+# 📁 PROJETOS
 with st.expander("📁 Projetos", expanded=False):
 
     nome = st.text_input("Nome do Projeto")
-    cor = st.color_picker("Cor do Projeto", "#3788d8")
+    cor = st.color_picker("Cor", "#3788d8")
 
     if st.button("Salvar Projeto"):
         try:
             c.execute("INSERT INTO projetos (nome, cor) VALUES (?, ?)", (nome, cor))
             conn.commit()
-            st.success("Projeto criado!")
             st.rerun()
         except:
             st.warning("Projeto já existe.")
 
-    st.subheader("Projetos cadastrados")
     st.dataframe(pd.read_sql("SELECT * FROM projetos", conn))
 
-# 📌 NOVO EVENTO (agora com projeto)
+# 📌 NOVO EVENTO
 with st.expander("📌 Novo Evento", expanded=False):
 
     nome = st.text_input("Nome do Evento")
