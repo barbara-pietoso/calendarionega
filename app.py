@@ -62,9 +62,9 @@ if "evento_id" not in st.session_state:
     st.session_state.evento_id = None
 
 # =====================================================
-# 📅 CALENDÁRIO (SEMPRE NO TOPO)
+# 📅 CALENDÁRIO
 # =====================================================
-st.title("📅 Agenda")
+st.title("📅 Agenda de Eventos")
 
 eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
 
@@ -83,7 +83,6 @@ state = calendar(
     key="calendar"
 )
 
-# clique no evento
 if state.get("eventClick"):
     st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
 
@@ -99,17 +98,17 @@ if st.session_state.evento_id:
     ).iloc[0]
 
     st.divider()
-    st.subheader("📌 Editar Agenda")
+    st.subheader("📌 Editar Evento")
 
-    nome = st.text_input("Nome", evento["nome"])
-    data = st.date_input("Data", pd.to_datetime(evento["data"]))
-    local = st.text_input("Local", evento["local"])
-    descricao = st.text_area("Descrição", evento["descricao"])
+    nome = st.text_input("Nome", evento["nome"], key="edit_nome")
+    data = st.date_input("Data", pd.to_datetime(evento["data"]), key="edit_data")
+    local = st.text_input("Local", evento["local"], key="edit_local")
+    descricao = st.text_area("Descrição", evento["descricao"], key="edit_desc")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("💾 Salvar"):
+        if st.button("💾 Salvar", key="btn_salvar_evento"):
             c.execute("""
                 UPDATE eventos
                 SET nome=?, data=?, local=?, descricao=?
@@ -120,7 +119,7 @@ if st.session_state.evento_id:
             st.rerun()
 
     with col2:
-        if st.button("🗑️ Excluir Evento"):
+        if st.button("🗑️ Excluir Evento", key="btn_excluir_evento"):
             c.execute("DELETE FROM eventos WHERE id = ?", (evento["id"],))
             conn.commit()
             st.session_state.evento_id = None
@@ -152,12 +151,12 @@ if st.session_state.evento_id:
 
     if not pessoas.empty:
         pessoa_dict = dict(zip(pessoas["nome"], pessoas["id"]))
-        pessoa_nome = st.selectbox("Adicionar pessoa", list(pessoa_dict.keys()))
+        pessoa_nome = st.selectbox("Adicionar pessoa", list(pessoa_dict.keys()), key="select_pessoa")
 
-        papel = st.selectbox("Papel", ["Participante", "Responsável", "Apoio"])
-        presenca = st.selectbox("Presença", ["Confirmado", "Pendente", "Ausente"])
+        papel = st.selectbox("Papel", ["Participante", "Responsável", "Apoio"], key="papel")
+        presenca = st.selectbox("Presença", ["Confirmado", "Pendente", "Ausente"], key="presenca")
 
-        if st.button("➕ Adicionar participante"):
+        if st.button("➕ Adicionar participante", key="add_participante"):
             c.execute("""
                 INSERT INTO participacoes (pessoa_id, evento_id, papel, presenca)
                 VALUES (?, ?, ?, ?)
@@ -166,10 +165,10 @@ if st.session_state.evento_id:
             st.rerun()
 
 # =====================================================
-# 📂 ABAS (APENAS CADASTRO)
+# 📂 ABAS
 # =====================================================
 st.divider()
-tab1, tab2 = st.tabs(["👤 Equipe", "📌 Novo Evento"])
+tab1, tab2 = st.tabs(["👤 Pessoas", "📌 Novo Evento"])
 
 # ---------------------------
 # 👤 PESSOAS
@@ -177,23 +176,23 @@ tab1, tab2 = st.tabs(["👤 Equipe", "📌 Novo Evento"])
 with tab1:
     st.header("👤 Cadastro de Pessoas")
 
-    nome = st.text_input("Nome")
-    email = st.text_input("Email")
-    funcao = st.text_input("Função")
+    nome = st.text_input("Nome", key="p_nome")
+    email = st.text_input("Email", key="p_email")
+    funcao = st.text_input("Função", key="p_funcao")
 
-    if st.button("Salvar Pessoa"):
+    if st.button("Salvar Pessoa", key="btn_salvar_pessoa"):
         try:
             c.execute(
                 "INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
                 (nome, email, funcao)
             )
             conn.commit()
-            st.success("Usuário cadastrado!")
+            st.success("Pessoa cadastrada!")
             st.rerun()
         except:
-            st.warning("Usuário já existente.")
+            st.warning("Pessoa já existe.")
 
-    st.subheader("📋 Equipe")
+    st.subheader("📋 Pessoas cadastradas")
 
     pessoas_df = pd.read_sql("SELECT * FROM pessoas", conn)
 
@@ -229,12 +228,12 @@ with tab1:
 with tab2:
     st.header("📌 Criar Evento")
 
-    nome = st.text_input("Nome do Evento")
-    data = st.date_input("Data")
-    local = st.text_input("Local")
-    descricao = st.text_area("Descrição")
+    nome = st.text_input("Nome do Evento", key="novo_nome")
+    data = st.date_input("Data", key="novo_data")
+    local = st.text_input("Local", key="novo_local")
+    descricao = st.text_area("Descrição", key="novo_desc")
 
-    if st.button("Salvar Evento"):
+    if st.button("Salvar Evento", key="btn_salvar_evento_novo"):
         c.execute("""
             INSERT INTO eventos (nome, data, local, descricao)
             VALUES (?, ?, ?, ?)
@@ -242,4 +241,3 @@ with tab2:
         conn.commit()
         st.success("Evento criado!")
         st.rerun()
-        
