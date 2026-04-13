@@ -64,6 +64,10 @@ if "evento_id" not in st.session_state:
 if "mostrar_add_part" not in st.session_state:
     st.session_state.mostrar_add_part = False
 
+# 🔥 NOVO: controle de fechamento
+if "fechar_evento_flag" not in st.session_state:
+    st.session_state.fechar_evento_flag = False
+
 # =====================================================
 # 📅 CALENDÁRIO
 # =====================================================
@@ -86,12 +90,17 @@ state = calendar(
     key="calendar"
 )
 
-if state.get("eventClick"):
+# 🔥 BLOQUEIO DO CLIQUE AO FECHAR
+if state.get("eventClick") and not st.session_state.fechar_evento_flag:
     st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
-    st.session_state.mostrar_add_part = False  # reset UI
+    st.session_state.mostrar_add_part = False
+
+# 🔥 RESET DO BLOQUEIO
+if st.session_state.fechar_evento_flag:
+    st.session_state.fechar_evento_flag = False
 
 # =====================================================
-# 📌 DETALHES DO EVENTO (SÓ SE CLICAR)
+# 📌 DETALHES DO EVENTO
 # =====================================================
 if st.session_state.evento_id is not None:
 
@@ -112,6 +121,7 @@ if st.session_state.evento_id is not None:
         if st.button("❌ Fechar", key="fechar_evento"):
             st.session_state.evento_id = None
             st.session_state.mostrar_add_part = False
+            st.session_state.fechar_evento_flag = True
             st.rerun()
 
     tab_part, tab_edit = st.tabs(["👥 Participantes", "✏️ Editar Evento"])
@@ -260,4 +270,3 @@ with st.expander("📌 Novo Evento", expanded=False):
         conn.commit()
         st.success("Evento criado!")
         st.rerun()
-        
