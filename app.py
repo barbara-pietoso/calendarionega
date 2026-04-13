@@ -1,5 +1,96 @@
+import streamlit as st
+import sqlite3
+import pandas as pd
+from streamlit_calendar import calendar
+
+# ---------------------------
+# CONFIG
+# ---------------------------
+st.set_page_config(page_title="Agenda", layout="wide")
+
+# ---------------------------
+# CONEXÃO
+# ---------------------------
+@st.cache_resource
+def get_connection():
+    return sqlite3.connect("database.db", check_same_thread=False)
+
+conn = get_connection()
+c = conn.cursor()
+
+# ---------------------------
+# TABELAS
+# ---------------------------
+def create_tables():
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS pessoas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT UNIQUE,
+        email TEXT,
+        funcao TEXT
+    )
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS eventos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT,
+        data TEXT,
+        local TEXT,
+        descricao TEXT
+    )
+    """)
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS participacoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pessoa_id INTEGER,
+        evento_id INTEGER,
+        papel TEXT,
+        presenca TEXT
+    )
+    """)
+
+    conn.commit()
+
+create_tables()
+
+# ---------------------------
+# ESTADO
+# ---------------------------
+if "evento_id" not in st.session_state:
+    st.session_state.evento_id = None
+
+if "mostrar_add_part" not in st.session_state:
+    st.session_state.mostrar_add_part = False
+
 # =====================================================
-# 📌 DETALHES DO EVENTO (ATUALIZADO)
+# 📅 CALENDÁRIO
+# =====================================================
+st.title("📅 Agenda de Eventos")
+
+eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
+
+eventos_calendar = [
+    {"title": row["nome"], "start": row["data"], "id": str(row["id"])}
+    for _, row in eventos_df.iterrows()
+]
+
+state = calendar(
+    events=eventos_calendar,
+    options={
+        "initialView": "dayGridMonth",
+        "locale": "pt-br",
+        "height": 650
+    },
+    key="calendar"
+)
+
+if state.get("eventClick"):
+    st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
+
+# =====================================================
+# 📌 DETALHES DO EVENTO
 # =====================================================
 if st.session_state.evento_id:
 
@@ -12,14 +103,11 @@ if st.session_state.evento_id:
     st.divider()
     st.subheader(f"📌 {evento['nome']}")
 
-    # ---------------------------
-    # TABS INTERNAS
-    # ---------------------------
     tab_part, tab_edit = st.tabs(["👥 Participantes", "✏️ Editar Evento"])
 
-    # =====================================================
-    # 👥 PARTICIPANTES (PRIMEIRO)
-    # =====================================================
+    # ---------------------------
+    # 👥 PARTICIPANTES
+    # ---------------------------
     with tab_part:
 
         st.subheader("👥 Participantes")
@@ -33,7 +121,6 @@ if st.session_state.evento_id:
             WHERE pa.evento_id = ?
         """, conn, params=(evento["id"],))
 
-        # LISTA DE PARTICIPANTES
         if participacoes.empty:
             st.info("Nenhum participante ainda.")
         else:
@@ -46,18 +133,9 @@ if st.session_state.evento_id:
                     conn.commit()
                     st.rerun()
 
-        # ---------------------------
-        # BOTÃO PARA MOSTRAR FORMULÁRIO
-        # ---------------------------
-        if "mostrar_add_part" not in st.session_state:
-            st.session_state.mostrar_add_part = False
-
-        if st.button("➕ Gerenciar participantes"):
+        if st.button("➕ Gerenciar participantes", key="toggle_part"):
             st.session_state.mostrar_add_part = not st.session_state.mostrar_add_part
 
-        # ---------------------------
-        # FORMULÁRIO (APENAS SE ATIVADO)
-        # ---------------------------
         if st.session_state.mostrar_add_part:
 
             st.divider()
@@ -79,9 +157,9 @@ if st.session_state.evento_id:
             else:
                 st.warning("Cadastre pessoas primeiro.")
 
-    # =====================================================
+    # ---------------------------
     # ✏️ EDITAR EVENTO
-    # =====================================================
+    # ---------------------------
     with tab_edit:
 
         st.subheader("✏️ Editar Evento")
@@ -111,3 +189,81 @@ if st.session_state.evento_id:
                 st.session_state.evento_id = None
                 st.warning("Evento excluído!")
                 st.rerun()
+
+# =====================================================
+# 📂 ABAS
+# =====================================================
+st.divider()
+tab1, tab2 = st.tabs(["👤 Pessoas", "📌 Novo Evento"])
+
+# ---------------------------
+# 👤 PESSOAS
+# ---------------------------
+with tab1:
+    st.header("👤 Cadastro de Pessoas")
+
+    nome = st.text_input("Nome", key="p_nome")
+    email = st.text_input("Email", key="p_email")
+    funcao = st.text_input("Função", key="p_funcao")
+
+    if st.button("Salvar Pessoa", key="btn_salvar_pessoa"):
+        try:
+            c.execute(
+                "INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
+                (nome, email, funcao)
+            )
+            conn.commit()
+            st.success("Pessoa cadastrada!")
+            st.rerun()
+        except:
+            st.warning("Pessoa já existe.")
+
+    st.subheader("📋 Pessoas cadastradas")
+
+    pessoas_df = pd.read_sql("SELECT * FROM pessoas", conn)
+
+    for _, row in pessoas_df.iterrows():
+        with st.expander(f"{row['nome']}"):
+            novo_nome = st.text_input("Nome", row["nome"], key=f"nome_{row['id']}")
+            novo_email = st.text_input("Email", row["email"], key=f"email_{row['id']}")
+            nova_funcao = st.text_input("Função", row["funcao"], key=f"funcao_{row['id']}")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("💾 Salvar", key=f"save_p_{row['id']}"):
+                    c.execute("""
+                        UPDATE pessoas
+                        SET nome=?, email=?, funcao=?
+                        WHERE id=?
+                    """, (novo_nome, novo_email, nova_funcao, row["id"]))
+                    conn.commit()
+                    st.success("Atualizado!")
+                    st.rerun()
+
+            with col2:
+                if st.button("🗑️ Excluir", key=f"del_p_{row['id']}"):
+                    c.execute("DELETE FROM pessoas WHERE id = ?", (row["id"],))
+                    conn.commit()
+                    st.warning("Pessoa excluída!")
+                    st.rerun()
+
+# ---------------------------
+# 📌 NOVO EVENTO
+# ---------------------------
+with tab2:
+    st.header("📌 Criar Evento")
+
+    nome = st.text_input("Nome do Evento", key="novo_nome")
+    data = st.date_input("Data", key="novo_data")
+    local = st.text_input("Local", key="novo_local")
+    descricao = st.text_area("Descrição", key="novo_desc")
+
+    if st.button("Salvar Evento", key="btn_salvar_evento_novo"):
+        c.execute("""
+            INSERT INTO eventos (nome, data, local, descricao)
+            VALUES (?, ?, ?, ?)
+        """, (nome, str(data), local, descricao))
+        conn.commit()
+        st.success("Evento criado!")
+        st.rerun()
