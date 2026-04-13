@@ -72,27 +72,33 @@ tab1, tab2, tab3 = st.tabs(["📅 Calendário", "👤 Pessoas", "📌 Novo Event
 with tab1:
     st.title("📅 Agenda de Eventos")
 
-    eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
+    # 👉 CALENDÁRIO SEMPRE VISÍVEL
+    st.subheader("📅 Calendário")
+    data_selecionada = st.date_input("Selecione uma data")
 
-    eventos_calendar = [
-        {"title": row["nome"], "start": row["data"], "id": str(row["id"])}
-        for _, row in eventos_df.iterrows()
-    ]
+    # 👉 BUSCAR EVENTOS DO DIA
+    eventos = pd.read_sql("SELECT * FROM eventos", conn)
 
-    state = calendar(
-        events=eventos_calendar,
-        options={"initialView": "dayGridMonth", "locale": "pt-br", "height": 650},
-        key="calendar"
-    )
+    if not eventos.empty:
+        eventos["data"] = pd.to_datetime(eventos["data"])
 
-    # clique no evento
-    if state.get("eventClick"):
-        st.session_state.evento_id = int(state["eventClick"]["event"]["id"])
+        eventos_dia = eventos[eventos["data"] == pd.to_datetime(data_selecionada)]
+
+        if eventos_dia.empty:
+            st.info("Nenhum evento nesta data.")
+        else:
+            for _, row in eventos_dia.iterrows():
+                if st.button(f"{row['nome']} ({row['local']})", key=row["id"]):
+                    st.session_state.evento_id = row["id"]
+    else:
+        st.info("Nenhum evento cadastrado ainda.")
 
     # ---------------------------
     # DETALHES DO EVENTO
     # ---------------------------
     if st.session_state.evento_id:
+        st.divider()
+        st.subheader("📌 Detalhes do Evento")
 
         evento = pd.read_sql(
             "SELECT * FROM eventos WHERE id = ?",
@@ -100,34 +106,19 @@ with tab1:
             params=(st.session_state.evento_id,)
         ).iloc[0]
 
-        st.divider()
-        st.subheader("📌 Editar Evento")
-
         nome = st.text_input("Nome", evento["nome"])
         data = st.date_input("Data", pd.to_datetime(evento["data"]))
         local = st.text_input("Local", evento["local"])
         descricao = st.text_area("Descrição", evento["descricao"])
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("💾 Salvar"):
-                c.execute("""
-                    UPDATE eventos
-                    SET nome=?, data=?, local=?, descricao=?
-                    WHERE id=?
-                """, (nome, str(data), local, descricao, evento["id"]))
-                conn.commit()
-                st.success("Evento atualizado!")
-                st.rerun()
-
-        with col2:
-            if st.button("🗑️ Excluir Evento"):
-                c.execute("DELETE FROM eventos WHERE id = ?", (evento["id"],))
-                conn.commit()
-                st.session_state.evento_id = None
-                st.warning("Evento excluído!")
-                st.rerun()
+        if st.button("💾 Salvar Alterações"):
+            c.execute("""
+            UPDATE eventos
+            SET nome=?, data=?, local=?, descricao=?
+            WHERE id=?
+            """, (nome, str(data), local, descricao, evento["id"]))
+            conn.commit()
+            st.success("Atualizado!")
 
         # ---------------------------
         # PARTICIPANTES
