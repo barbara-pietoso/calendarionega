@@ -8,7 +8,7 @@ from streamlit_calendar import calendar
 # ---------------------------
 st.set_page_config(
     page_title="Agenda NEGA/UFRGS", 
-    page_icon='logo_nega.png'
+    page_icon='logo_nega.png',
     layout="wide")
 
 # ---------------------------
