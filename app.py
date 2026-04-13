@@ -71,25 +71,26 @@ tab1, tab2, tab3 = st.tabs(["📅 Calendário", "👤 Pessoas", "📌 Novo Event
 with tab1:
     st.title("📅 Agenda de Eventos")
 
+    # 👉 CALENDÁRIO SEMPRE VISÍVEL
+    st.subheader("📅 Calendário")
+    data_selecionada = st.date_input("Selecione uma data")
+
+    # 👉 BUSCAR EVENTOS DO DIA
     eventos = pd.read_sql("SELECT * FROM eventos", conn)
 
-    st.subheader("📅 Eventos")
-
-    if eventos.empty:
-        st.info("Nenhum evento ainda. Crie um novo na aba 'Novo Evento'.")
-    else:
+    if not eventos.empty:
         eventos["data"] = pd.to_datetime(eventos["data"])
-        eventos = eventos.sort_values("data")
 
-        for _, row in eventos.iterrows():
-            col1, col2 = st.columns([3, 1])
+        eventos_dia = eventos[eventos["data"] == pd.to_datetime(data_selecionada)]
 
-            with col1:
-                if st.button(f"{row['data'].date()} - {row['nome']}", key=row["id"]):
+        if eventos_dia.empty:
+            st.info("Nenhum evento nesta data.")
+        else:
+            for _, row in eventos_dia.iterrows():
+                if st.button(f"{row['nome']} ({row['local']})", key=row["id"]):
                     st.session_state.evento_id = row["id"]
-
-            with col2:
-                st.write(row["local"])
+    else:
+        st.info("Nenhum evento cadastrado ainda.")
 
     # ---------------------------
     # DETALHES DO EVENTO
