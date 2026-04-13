@@ -17,13 +17,13 @@ st.set_page_config(
 col1, col2, col3 = st.columns([1,4,1])
 
 with col1:
-    st.image("logo_nega.png", width=150)
+    st.image("logo_nega.png", width=200)
 
 with col2:
     st.markdown("<h1 style='text-align: center;'>AGENDA NEGA</h1>", unsafe_allow_html=True)
 
 with col3:
-    st.image("logo_ufrgs.png", width=150)
+    st.image("logo_ufrgs.png", width=250)
 
 # ---------------------------
 # CONEXÃO
