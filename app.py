@@ -8,7 +8,7 @@ import pandas as pd
 st.set_page_config(page_title="Agenda", layout="wide")
 
 # ---------------------------
-# CONEXÃO COM BANCO
+# CONEXÃO
 # ---------------------------
 @st.cache_resource
 def get_connection():
@@ -18,7 +18,7 @@ conn = get_connection()
 c = conn.cursor()
 
 # ---------------------------
-# CRIAR TABELAS
+# TABELAS
 # ---------------------------
 def create_tables():
     c.execute("""
@@ -31,21 +31,12 @@ def create_tables():
     """)
 
     c.execute("""
-    CREATE TABLE IF NOT EXISTS projetos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT UNIQUE
-    )
-    """)
-
-    c.execute("""
     CREATE TABLE IF NOT EXISTS eventos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT,
         data TEXT,
         local TEXT,
-        descricao TEXT,
-        projeto_id INTEGER,
-        FOREIGN KEY (projeto_id) REFERENCES projetos(id)
+        descricao TEXT
     )
     """)
 
@@ -55,9 +46,7 @@ def create_tables():
         pessoa_id INTEGER,
         evento_id INTEGER,
         papel TEXT,
-        presenca TEXT,
-        FOREIGN KEY (pessoa_id) REFERENCES pessoas(id),
-        FOREIGN KEY (evento_id) REFERENCES eventos(id)
+        presenca TEXT
     )
     """)
 
@@ -66,189 +55,134 @@ def create_tables():
 create_tables()
 
 # ---------------------------
-# PRÉ-CADASTRO (EDITAR AQUI 👇)
+# SIDEBAR (CADASTROS)
 # ---------------------------
-def seed_data():
+st.sidebar.title("⚙️ Cadastro")
 
-    # 🔹 INSIRA NOMES AQUI
-    pessoas_iniciais = [
-        ("Cláudia Zeferino", "sem@email.com", "Professora"),
-        ("Lara Machado", "sem@email.com", "Doutora"),
-        ("Bruno", "sem@email.com", "Doutor"),
-        ("Laisa Zatti", "sem@email.com", "Mestre"),
-        ("Giulia Sichelero", "sem@email.com", "Mestre"),
-        ("Laura Flores", "sem@email.comm", "Mestre"),
-        ("Mileny", "sem@email.com", "Mestre"),
-        ("Ruan", "sem@email.com", "Voluntário"),
-        ("Ismael", "sem@email.com", "Bolsista"),
-        ("Bárbara", "sem@email.com", "Bolsista"),
-        ("Ismael", "sem@email.com", "Bolsista"),
-        ("Francine", "sem@email.com", "Bolsista"),
-        ("Adriane", "sem@email.com", "Bolsista"),
-        
-        # 👉 ADICIONE MAIS PESSOAS AQUI
-    ]
+# 👉 PESSOAS
+st.sidebar.subheader("👤 Nova Pessoa")
+nome_p = st.sidebar.text_input("Nome")
+email_p = st.sidebar.text_input("Email")
+funcao_p = st.sidebar.text_input("Função")
 
-    for nome, email, funcao in pessoas_iniciais:
-        try:
-            c.execute("INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
-                      (nome, email, funcao))
-        except:
-            pass
+if st.sidebar.button("Salvar Pessoa"):
+    try:
+        c.execute(
+            "INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
+            (nome_p, email_p, funcao_p)
+        )
+        conn.commit()
+        st.sidebar.success("Salvo!")
+    except:
+        st.sidebar.warning("Pessoa já existe.")
 
-    # 🔹 INSIRA PROJETOS AQUI
-    projetos_iniciais = [
-        ("Projeto A",),
-        ("Projeto B",),
-        # 👉 ADICIONE MAIS PROJETOS AQUI
-    ]
+# 👉 EVENTOS
+st.sidebar.subheader("📌 Novo Evento")
+nome_e = st.sidebar.text_input("Nome do Evento")
+data_e = st.sidebar.date_input("Data")
+local_e = st.sidebar.text_input("Local")
+desc_e = st.sidebar.text_area("Descrição")
 
-    for projeto in projetos_iniciais:
-        try:
-            c.execute("INSERT INTO projetos (nome) VALUES (?)", projeto)
-        except:
-            pass
-
+if st.sidebar.button("Salvar Evento"):
+    c.execute("""
+        INSERT INTO eventos (nome, data, local, descricao)
+        VALUES (?, ?, ?, ?)
+    """, (nome_e, str(data_e), local_e, desc_e))
     conn.commit()
-
-seed_data()
+    st.sidebar.success("Evento criado!")
 
 # ---------------------------
-# MENU
+# ESTADO (evento selecionado)
+# ---------------------------
+if "evento_id" not in st.session_state:
+    st.session_state.evento_id = None
+
+# ---------------------------
+# TELA PRINCIPAL
 # ---------------------------
 st.title("📅 Agenda de Eventos")
 
-menu = ["Calendário", "Pessoas", "Projetos", "Eventos", "Participações"]
-choice = st.sidebar.selectbox("Menu", menu)
+eventos = pd.read_sql("SELECT * FROM eventos", conn)
+
+if eventos.empty:
+    st.info("Nenhum evento cadastrado.")
+else:
+    eventos["data"] = pd.to_datetime(eventos["data"])
+    eventos = eventos.sort_values("data")
+
+    st.subheader("📅 Calendário")
+
+    # LISTA CLICÁVEL
+    for _, row in eventos.iterrows():
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            if st.button(f"{row['data'].date()} - {row['nome']}", key=row["id"]):
+                st.session_state.evento_id = row["id"]
+
+        with col2:
+            st.write(row["local"])
 
 # ---------------------------
-# CALENDÁRIO
+# DETALHES DO EVENTO
 # ---------------------------
-if choice == "Calendário":
-    st.subheader("📅 Eventos")
+if st.session_state.evento_id:
 
-    query = """
-    SELECT e.id, e.nome, e.data, e.local,
-           COALESCE(p.nome, 'Sem projeto') as projeto
-    FROM eventos e
-    LEFT JOIN projetos p ON e.projeto_id = p.id
-    """
+    st.divider()
+    st.subheader("📌 Detalhes do Evento")
 
-    df = pd.read_sql(query, conn)
+    evento = pd.read_sql(
+        "SELECT * FROM eventos WHERE id = ?",
+        conn,
+        params=(st.session_state.evento_id,)
+    ).iloc[0]
 
-    if not df.empty:
-        df["data"] = pd.to_datetime(df["data"])
-        df = df.sort_values("data")
+    # 👉 EDIÇÃO
+    nome = st.text_input("Nome", evento["nome"])
+    data = st.date_input("Data", pd.to_datetime(evento["data"]))
+    local = st.text_input("Local", evento["local"])
+    descricao = st.text_area("Descrição", evento["descricao"])
 
-        st.dataframe(df, use_container_width=True)
-
-        st.subheader("🔎 Filtrar por data")
-        data = st.date_input("Escolha uma data")
-
-        filtro = df[df["data"] == pd.to_datetime(data)]
-        st.dataframe(filtro, use_container_width=True)
-
-    else:
-        st.info("Nenhum evento cadastrado.")
-
-# ---------------------------
-# PESSOAS
-# ---------------------------
-elif choice == "Pessoas":
-    st.subheader("👤 Cadastro de Pessoas")
-
-    nome = st.text_input("Nome")
-    email = st.text_input("Email")
-    funcao = st.text_input("Função")
-
-    if st.button("Salvar Pessoa"):
-        try:
-            c.execute("INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
-                      (nome, email, funcao))
-            conn.commit()
-            st.success("Pessoa cadastrada!")
-        except:
-            st.warning("Pessoa já existe.")
-
-    df = pd.read_sql("SELECT * FROM pessoas", conn)
-    st.dataframe(df, use_container_width=True)
-
-# ---------------------------
-# PROJETOS
-# ---------------------------
-elif choice == "Projetos":
-    st.subheader("📁 Cadastro de Projetos")
-
-    nome = st.text_input("Nome do Projeto")
-
-    if st.button("Salvar Projeto"):
-        try:
-            c.execute("INSERT INTO projetos (nome) VALUES (?)", (nome,))
-            conn.commit()
-            st.success("Projeto criado!")
-        except:
-            st.warning("Projeto já existe.")
-
-    df = pd.read_sql("SELECT * FROM projetos", conn)
-    st.dataframe(df, use_container_width=True)
-
-# ---------------------------
-# EVENTOS
-# ---------------------------
-elif choice == "Eventos":
-    st.subheader("📌 Criar Evento")
-
-    nome = st.text_input("Nome do Evento")
-    data = st.date_input("Data")
-    local = st.text_input("Local")
-    descricao = st.text_area("Descrição")
-
-    projetos = pd.read_sql("SELECT * FROM projetos", conn)
-
-    if not projetos.empty:
-        projeto_dict = dict(zip(projetos["nome"], projetos["id"]))
-        projeto_nome = st.selectbox("Projeto", list(projeto_dict.keys()))
-    else:
-        st.warning("Cadastre um projeto primeiro.")
-        projeto_nome = None
-
-    if st.button("Salvar Evento") and projeto_nome:
+    if st.button("💾 Salvar Alterações"):
         c.execute("""
-        INSERT INTO eventos (nome, data, local, descricao, projeto_id)
-        VALUES (?, ?, ?, ?, ?)
-        """, (nome, str(data), local, descricao, projeto_dict[projeto_nome]))
+        UPDATE eventos
+        SET nome=?, data=?, local=?, descricao=?
+        WHERE id=?
+        """, (nome, str(data), local, descricao, evento["id"]))
         conn.commit()
-        st.success("Evento criado!")
+        st.success("Atualizado!")
 
-    df = pd.read_sql("SELECT * FROM eventos", conn)
-    st.dataframe(df, use_container_width=True)
-
-# ---------------------------
-# PARTICIPAÇÕES
-# ---------------------------
-elif choice == "Participações":
-    st.subheader("🔗 Vincular Pessoa a Evento")
+    # ---------------------------
+    # PARTICIPANTES
+    # ---------------------------
+    st.subheader("👥 Participantes")
 
     pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
-    eventos = pd.read_sql("SELECT * FROM eventos", conn)
+    participacoes = pd.read_sql("""
+        SELECT p.nome, pa.papel, pa.presenca
+        FROM participacoes pa
+        JOIN pessoas p ON pa.pessoa_id = p.id
+        WHERE pa.evento_id = ?
+    """, conn, params=(evento["id"],))
 
-    if not pessoas.empty and not eventos.empty:
+    st.dataframe(participacoes, use_container_width=True)
+
+    # 👉 ADICIONAR PARTICIPANTE
+    if not pessoas.empty:
         pessoa_dict = dict(zip(pessoas["nome"], pessoas["id"]))
-        evento_dict = dict(zip(eventos["nome"], eventos["id"]))
-
-        pessoa_nome = st.selectbox("Pessoa", list(pessoa_dict.keys()))
-        evento_nome = st.selectbox("Evento", list(evento_dict.keys()))
+        pessoa_nome = st.selectbox("Adicionar pessoa", list(pessoa_dict.keys()))
 
         papel = st.selectbox("Papel", ["Participante", "Responsável", "Apoio"])
-        presenca = st.selectbox("Presença", ["Pendente", "Confirmado", "Ausente"])
+        presenca = st.selectbox("Presença", ["Confirmado", "Pendente", "Ausente"])
 
-        if st.button("Adicionar"):
+        if st.button("➕ Adicionar participante"):
             c.execute("""
-            INSERT INTO participacoes (pessoa_id, evento_id, papel, presenca)
-            VALUES (?, ?, ?, ?)
-            """, (pessoa_dict[pessoa_nome], evento_dict[evento_nome], papel, presenca))
+                INSERT INTO participacoes (pessoa_id, evento_id, papel, presenca)
+                VALUES (?, ?, ?, ?)
+            """, (pessoa_dict[pessoa_nome], evento["id"], papel, presenca))
             conn.commit()
-            st.success("Participação registrada!")
+            st.success("Adicionado!")
 
     else:
-        st.warning("Cadastre pessoas e eventos primeiro.")
+        st.warning("Cadastre pessoas primeiro.")
+        
