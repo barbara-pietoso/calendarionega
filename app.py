@@ -64,7 +64,7 @@ if "evento_id" not in st.session_state:
 # =====================================================
 # 📅 CALENDÁRIO (SEMPRE NO TOPO)
 # =====================================================
-st.title("📅 Agenda de Eventos")
+st.title("📅 Agenda")
 
 eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
 
@@ -99,7 +99,7 @@ if st.session_state.evento_id:
     ).iloc[0]
 
     st.divider()
-    st.subheader("📌 Editar Evento")
+    st.subheader("📌 Editar Agenda")
 
     nome = st.text_input("Nome", evento["nome"])
     data = st.date_input("Data", pd.to_datetime(evento["data"]))
@@ -169,7 +169,7 @@ if st.session_state.evento_id:
 # 📂 ABAS (APENAS CADASTRO)
 # =====================================================
 st.divider()
-tab1, tab2 = st.tabs(["👤 Pessoas", "📌 Novo Evento"])
+tab1, tab2 = st.tabs(["👤 Equipe", "📌 Novo Evento"])
 
 # ---------------------------
 # 👤 PESSOAS
@@ -188,12 +188,12 @@ with tab1:
                 (nome, email, funcao)
             )
             conn.commit()
-            st.success("Pessoa cadastrada!")
+            st.success("Usuário cadastrado!")
             st.rerun()
         except:
-            st.warning("Pessoa já existe.")
+            st.warning("Usuário já existente.")
 
-    st.subheader("📋 Pessoas cadastradas")
+    st.subheader("📋 Equipe")
 
     pessoas_df = pd.read_sql("SELECT * FROM pessoas", conn)
 
