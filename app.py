@@ -147,9 +147,9 @@ st.divider()
 # =====================================================
 # 👤 PESSOAS (AGORA CORRIGIDO)
 # =====================================================
-with st.expander("👤 Pessoas", expanded=False):
+with st.expander("👤 Integrantes", expanded=False):
 
-    tab1, tab2 = st.tabs(["➕ Cadastrar", "📋 Pessoas cadastradas"])
+    tab1, tab2 = st.tabs(["➕ Cadastrar", "📋 Integrantes"])
 
     # ---------------------------
     # CADASTRO
