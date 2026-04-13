@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+from streamlit_calendar import calendar
 
 # ---------------------------
 # CONFIG
@@ -66,31 +67,39 @@ if "evento_id" not in st.session_state:
 tab1, tab2, tab3 = st.tabs(["📅 Calendário", "👤 Pessoas", "📌 Novo Evento"])
 
 # =====================================================
-# 📅 CALENDÁRIO (SEMPRE VISÍVEL)
+# 📅 CALENDÁRIO VISUAL
 # =====================================================
 with tab1:
     st.title("📅 Agenda de Eventos")
 
-    # 👉 CALENDÁRIO SEMPRE VISÍVEL
-    st.subheader("📅 Calendário")
-    data_selecionada = st.date_input("Selecione uma data")
+    eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
 
-    # 👉 BUSCAR EVENTOS DO DIA
-    eventos = pd.read_sql("SELECT * FROM eventos", conn)
+    # 👉 FORMATO PARA O CALENDÁRIO
+    eventos_calendar = []
 
-    if not eventos.empty:
-        eventos["data"] = pd.to_datetime(eventos["data"])
+    for _, row in eventos_df.iterrows():
+        eventos_calendar.append({
+            "title": row["nome"],
+            "start": row["data"],
+            "id": str(row["id"])
+        })
 
-        eventos_dia = eventos[eventos["data"] == pd.to_datetime(data_selecionada)]
+    calendar_options = {
+        "initialView": "dayGridMonth",
+        "locale": "pt-br",
+        "height": 650,
+    }
 
-        if eventos_dia.empty:
-            st.info("Nenhum evento nesta data.")
-        else:
-            for _, row in eventos_dia.iterrows():
-                if st.button(f"{row['nome']} ({row['local']})", key=row["id"]):
-                    st.session_state.evento_id = row["id"]
-    else:
-        st.info("Nenhum evento cadastrado ainda.")
+    state = calendar(
+        events=eventos_calendar,
+        options=calendar_options,
+        key="calendar"
+    )
+
+    # 👉 CLIQUE NO EVENTO
+    if state.get("eventClick"):
+        evento_id = int(state["eventClick"]["event"]["id"])
+        st.session_state.evento_id = evento_id
 
     # ---------------------------
     # DETALHES DO EVENTO
@@ -119,7 +128,9 @@ with tab1:
             conn.commit()
             st.success("Atualizado!")
 
+        # ---------------------------
         # PARTICIPANTES
+        # ---------------------------
         st.subheader("👥 Participantes")
 
         pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
@@ -133,7 +144,6 @@ with tab1:
 
         st.dataframe(participacoes, use_container_width=True)
 
-        # ADICIONAR PARTICIPANTE
         if not pessoas.empty:
             pessoa_dict = dict(zip(pessoas["nome"], pessoas["id"]))
             pessoa_nome = st.selectbox("Adicionar pessoa", list(pessoa_dict.keys()))
@@ -148,8 +158,6 @@ with tab1:
                 """, (pessoa_dict[pessoa_nome], evento["id"], papel, presenca))
                 conn.commit()
                 st.success("Adicionado!")
-        else:
-            st.warning("Cadastre pessoas primeiro.")
 
 # =====================================================
 # 👤 PESSOAS
@@ -172,7 +180,6 @@ with tab2:
         except:
             st.warning("Pessoa já existe.")
 
-    st.subheader("📋 Lista de Pessoas")
     df_pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
     st.dataframe(df_pessoas, use_container_width=True)
 
