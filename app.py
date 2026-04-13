@@ -147,16 +147,14 @@ if st.session_state.evento_id is not None:
         st.subheader(f"📌 {evento['nome']}")
 
     with col2:
-        if st.button("❌ Fechar"):
+        if st.button("❌ Fechar", key="fechar_evento_btn"):
             st.session_state.evento_id = None
             st.session_state.fechar_evento_flag = True
             st.rerun()
 
     tab_part, tab_edit = st.tabs(["👥 Participantes", "✏️ Editar Evento"])
 
-    # ---------------------------
-    # PARTICIPANTES
-    # ---------------------------
+    # 👥 PARTICIPANTES
     with tab_part:
 
         pessoas = pd.read_sql("SELECT * FROM pessoas", conn)
@@ -180,29 +178,26 @@ if st.session_state.evento_id is not None:
                     conn.commit()
                     st.rerun()
 
-        if st.button("➕ Gerenciar participantes"):
+        if st.button("➕ Gerenciar participantes", key="btn_toggle_part"):
             st.session_state.mostrar_add_part = not st.session_state.mostrar_add_part
 
         if st.session_state.mostrar_add_part and not pessoas.empty:
 
             pessoa_dict = dict(zip(pessoas["nome"], pessoas["id"]))
-            pessoa_nome = st.selectbox("Pessoa", list(pessoa_dict.keys()))
+            pessoa_nome = st.selectbox("Pessoa", list(pessoa_dict.keys()), key="select_pessoa_evento")
 
-            papel = st.selectbox("Papel", ["Participante", "Responsável", "Apoio"])
-            presenca = st.selectbox("Presença", ["Confirmado", "Pendente", "Ausente"])
+            papel = st.selectbox("Papel", ["Participante", "Responsável", "Apoio"], key="papel_evento")
+            presenca = st.selectbox("Presença", ["Confirmado", "Pendente", "Ausente"], key="presenca_evento")
 
-            if st.button("Adicionar participante"):
+            if st.button("Adicionar participante", key="btn_add_part"):
                 c.execute("""
                     INSERT INTO participacoes (pessoa_id, evento_id, papel, presenca)
                     VALUES (?, ?, ?, ?)
                 """, (pessoa_dict[pessoa_nome], evento["id"], papel, presenca))
                 conn.commit()
-                st.success("Participante adicionado!")
                 st.rerun()
 
-    # ---------------------------
-    # EDITAR EVENTO
-    # ---------------------------
+    # ✏️ EDITAR EVENTO
     with tab_edit:
 
         nome = st.text_input("Nome", evento["nome"], key="edit_nome")
@@ -214,9 +209,9 @@ if st.session_state.evento_id is not None:
 
         if not projetos.empty:
             projeto_dict = dict(zip(projetos["nome"], projetos["id"]))
-            projeto_nome = st.selectbox("Projeto", list(projeto_dict.keys()))
+            projeto_nome = st.selectbox("Projeto", list(projeto_dict.keys()), key="edit_projeto")
 
-        if st.button("💾 Salvar"):
+        if st.button("💾 Salvar", key="btn_salvar_evento"):
             c.execute("""
                 UPDATE eventos
                 SET nome=?, data=?, local=?, descricao=?, projeto_id=?
@@ -226,7 +221,7 @@ if st.session_state.evento_id is not None:
             st.rerun()
 
 # =====================================================
-# 📂 SEÇÕES RECOLHIDAS (CADASTROS)
+# 📂 CADASTROS
 # =====================================================
 st.divider()
 
@@ -240,12 +235,10 @@ with st.expander("👤 Integrantes", expanded=False):
         email = st.text_input("Email", key="p_email")
         funcao = st.text_input("Função", key="p_funcao")
 
-        if st.button("Salvar Pessoa"):
+        if st.button("Salvar Pessoa", key="btn_salvar_pessoa"):
             try:
-                c.execute(
-                    "INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
-                    (nome, email, funcao)
-                )
+                c.execute("INSERT INTO pessoas (nome, email, funcao) VALUES (?, ?, ?)",
+                          (nome, email, funcao))
                 conn.commit()
                 st.rerun()
             except:
@@ -262,10 +255,10 @@ with st.expander("👤 Integrantes", expanded=False):
 # 📁 PROJETOS
 with st.expander("📁 Projetos", expanded=False):
 
-    nome = st.text_input("Nome do Projeto")
-    cor = st.color_picker("Cor", "#3788d8")
+    nome = st.text_input("Nome do Projeto", key="proj_nome")
+    cor = st.color_picker("Cor", "#3788d8", key="proj_cor")
 
-    if st.button("Salvar Projeto"):
+    if st.button("Salvar Projeto", key="btn_salvar_projeto"):
         try:
             c.execute("INSERT INTO projetos (nome, cor) VALUES (?, ?)", (nome, cor))
             conn.commit()
@@ -285,15 +278,12 @@ with st.expander("📌 Novo Evento", expanded=False):
 
     if not projetos.empty:
         projeto_dict = dict(zip(projetos["nome"], projetos["id"]))
-        projeto_nome = st.selectbox("Projeto", list(projeto_dict.keys()))
-    else:
-        projeto_nome = None
+        projeto_nome = st.selectbox("Projeto", list(projeto_dict.keys()), key="novo_projeto")
 
-    if st.button("Salvar Evento") and projeto_nome:
+    if st.button("Salvar Evento", key="btn_salvar_evento_novo"):
         c.execute("""
             INSERT INTO eventos (nome, data, local, descricao, projeto_id)
             VALUES (?, ?, ?, ?, ?)
-        """, (nome, str(data), local, descricao, projeto_dict[projeto_nome]))
+        """, (nome, str(data), local, descricao, projeto_dict.get(projeto_nome)))
         conn.commit()
-        st.success("Evento criado!")
         st.rerun()
