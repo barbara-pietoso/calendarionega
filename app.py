@@ -88,7 +88,7 @@ if "fechar_evento_flag" not in st.session_state:
 # =====================================================
 # 📅 CALENDÁRIO
 # =====================================================
-st.title("📅 Agenda de Eventos")
+#st.title("📅 Agenda de Eventos")
 
 eventos_df = pd.read_sql("SELECT * FROM eventos", conn)
 
