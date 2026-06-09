@@ -55,7 +55,17 @@ with col1:
 
 with col2:
     st.markdown(
-        "<h1 style='text-align: center;'>AGENDA NEGA</h1>",
+        """
+        <h1 style='text-align: center; margin-bottom: 0;'>
+            AGENDA NEGA
+        </h1>
+
+        <p style='text-align: center; margin-top: 5px;'>
+            <a href="https://www.ufrgs.br/nega/" target="_blank">
+                🌐 Site oficial do NEGA
+            </a>
+        </p>
+        """,
         unsafe_allow_html=True
     )
 
