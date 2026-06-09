@@ -60,11 +60,11 @@ with col2:
             AGENDA NEGA
         </h1>
 
-        <p style='text-align: center; margin-top: 5px;'>
+        <div style='text-align: center; font-size: 0.95rem;'>
             <a href="https://www.ufrgs.br/nega/" target="_blank">
-                🌐 Site oficial do NEGA
+                Acessar site oficial ↗
             </a>
-        </p>
+        </div>
         """,
         unsafe_allow_html=True
     )
