@@ -16,8 +16,8 @@ st.set_page_config(
 # LOGIN SIMPLES
 # ---------------------------
 USERS = {
-    "admin": "123456",
-    "coordenador": "nega2026"
+    "coordenadoras": "nega2026",
+    "integrantes": "nega2026"
 }
 
 if "logged_in" not in st.session_state:
@@ -549,6 +549,7 @@ if st.session_state.evento_id is not None:
                 st.rerun()
 
 
+
 # =====================================================
 # 📂 CADASTROS
 # =====================================================
@@ -561,16 +562,121 @@ st.divider()
 with st.expander("👤 Integrantes", expanded=False):
 
     tab1, tab2 = st.tabs(
-        [
-            "➕ Cadastrar",
-            "📋 Integrantes"
-        ]
+        ["📋 Lista / Edição", "➕ Cadastro"]
     )
 
-    # ---------------------------
-    # ➕ CADASTRAR INTEGRANTE
-    # ---------------------------
+    # =================================================
+    # 📋 LISTA / EDIÇÃO
+    # =================================================
     with tab1:
+
+        pessoas_df = pd.read_sql(
+            """
+            SELECT *
+            FROM pessoas
+            ORDER BY nome
+            """,
+            conn
+        )
+
+        if pessoas_df.empty:
+
+            st.info("Nenhum integrante cadastrado.")
+
+        else:
+
+            for _, row in pessoas_df.iterrows():
+
+                with st.expander(f"{row['nome']}"):
+
+                    nome_edit = st.text_input(
+                        "Nome",
+                        value=row["nome"],
+                        key=f"nome_{row['id']}"
+                    )
+
+                    email_edit = st.text_input(
+                        "Email",
+                        value=row["email"],
+                        key=f"email_{row['id']}"
+                    )
+
+                    funcao_edit = st.text_input(
+                        "Função",
+                        value=row["funcao"] or "",
+                        key=f"funcao_{row['id']}"
+                    )
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        if st.button(
+                            "💾 Salvar",
+                            key=f"save_pessoa_{row['id']}"
+                        ):
+
+                            try:
+
+                                c.execute(
+                                    """
+                                    UPDATE pessoas
+                                    SET
+                                        nome = ?,
+                                        email = ?,
+                                        funcao = ?
+                                    WHERE id = ?
+                                    """,
+                                    (
+                                        nome_edit.strip(),
+                                        email_edit.strip().lower(),
+                                        funcao_edit.strip(),
+                                        row["id"]
+                                    )
+                                )
+
+                                conn.commit()
+
+                                st.success(
+                                    "Integrante atualizado."
+                                )
+
+                                st.rerun()
+
+                            except sqlite3.IntegrityError:
+
+                                st.warning(
+                                    "Já existe um integrante "
+                                    "com este e-mail."
+                                )
+
+                    with col2:
+
+                        if st.button(
+                            "🗑️ Excluir",
+                            key=f"del_pessoa_{row['id']}"
+                        ):
+
+                            c.execute(
+                                """
+                                DELETE FROM pessoas
+                                WHERE id = ?
+                                """,
+                                (row["id"],)
+                            )
+
+                            conn.commit()
+
+                            st.success(
+                                "Integrante removido."
+                            )
+
+                            st.rerun()
+
+    # =================================================
+    # ➕ CADASTRO
+    # =================================================
+    with tab2:
 
         nome = st.text_input(
             "Nome",
@@ -588,21 +694,17 @@ with st.expander("👤 Integrantes", expanded=False):
         )
 
         if st.button(
-            "Salvar Pessoa",
+            "Salvar Integrante",
             key="btn_salvar_pessoa"
         ):
 
             if not nome.strip():
 
-                st.warning(
-                    "Informe o nome."
-                )
+                st.warning("Informe o nome.")
 
             elif not email.strip():
 
-                st.warning(
-                    "Informe o e-mail."
-                )
+                st.warning("Informe o e-mail.")
 
             else:
 
@@ -639,233 +741,538 @@ with st.expander("👤 Integrantes", expanded=False):
                         "com este e-mail."
                     )
 
-    # ---------------------------
-    # 📋 LISTAR INTEGRANTES
-    # ---------------------------
-    with tab2:
+# =====================================================
+# 📁 PROJETOS
+# =====================================================
+with st.expander("📁 Projetos", expanded=False):
 
-        pessoas_df = pd.read_sql(
+    tab1, tab2 = st.tabs(
+        ["📋 Lista / Edição", "➕ Cadastro"]
+    )
+
+    # =================================================
+    # 📋 LISTA / EDIÇÃO
+    # =================================================
+    with tab1:
+
+        projetos_df = pd.read_sql(
             """
             SELECT *
-            FROM pessoas
+            FROM projetos
             ORDER BY nome
             """,
             conn
         )
 
-        if pessoas_df.empty:
+        if projetos_df.empty:
+
+            st.info("Nenhum projeto cadastrado.")
+
+        else:
+
+            for _, row in projetos_df.iterrows():
+
+                with st.expander(row["nome"]):
+
+                    nome_edit = st.text_input(
+                        "Nome",
+                        value=row["nome"],
+                        key=f"proj_nome_{row['id']}"
+                    )
+
+                    cor_edit = st.color_picker(
+                        "Cor",
+                        value=row["cor"],
+                        key=f"proj_cor_{row['id']}"
+                    )
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        if st.button(
+                            "💾 Salvar",
+                            key=f"save_proj_{row['id']}"
+                        ):
+
+                            try:
+
+                                c.execute(
+                                    """
+                                    UPDATE projetos
+                                    SET
+                                        nome = ?,
+                                        cor = ?
+                                    WHERE id = ?
+                                    """,
+                                    (
+                                        nome_edit.strip(),
+                                        cor_edit,
+                                        row["id"]
+                                    )
+                                )
+
+                                conn.commit()
+
+                                st.success(
+                                    "Projeto atualizado."
+                                )
+
+                                st.rerun()
+
+                            except sqlite3.IntegrityError:
+
+                                st.warning(
+                                    "Já existe um projeto "
+                                    "com este nome."
+                                )
+
+                    with col2:
+
+                        if st.button(
+                            "🗑️ Excluir",
+                            key=f"del_proj_{row['id']}"
+                        ):
+
+                            c.execute(
+                                """
+                                DELETE FROM projetos
+                                WHERE id = ?
+                                """,
+                                (row["id"],)
+                            )
+
+                            conn.commit()
+
+                            st.success(
+                                "Projeto removido."
+                            )
+
+                            st.rerun()
+
+    # =================================================
+    # ➕ CADASTRO
+    # =================================================
+    with tab2:
+
+        nome = st.text_input(
+            "Nome do Projeto",
+            key="proj_nome"
+        )
+
+        cor = st.color_picker(
+            "Cor",
+            "#3788d8",
+            key="proj_cor"
+        )
+
+        if st.button(
+            "Salvar Projeto",
+            key="btn_salvar_projeto"
+        ):
+
+            if not nome.strip():
+
+                st.warning(
+                    "Informe o nome do projeto."
+                )
+
+            else:
+
+                try:
+
+                    c.execute(
+                        """
+                        INSERT INTO projetos (
+                            nome,
+                            cor
+                        )
+                        VALUES (?, ?)
+                        """,
+                        (
+                            nome.strip(),
+                            cor
+                        )
+                    )
+
+                    conn.commit()
+
+                    st.success(
+                        "Projeto cadastrado."
+                    )
+
+                    st.rerun()
+
+                except sqlite3.IntegrityError:
+
+                    st.warning(
+                        "Já existe um projeto "
+                        "com este nome."
+                    )
+
+
+
+# =====================================================
+# 📌 EVENTOS
+# =====================================================
+with st.expander("📌 Eventos", expanded=False):
+
+    tab1, tab2 = st.tabs(
+        ["📋 Lista / Edição", "➕ Cadastro"]
+    )
+
+    # Inicializa estado de confirmação
+    if "confirmar_exclusao_evento" not in st.session_state:
+        st.session_state.confirmar_exclusao_evento = None
+
+    # =================================================
+    # 📋 LISTA / EDIÇÃO
+    # =================================================
+    with tab1:
+
+        eventos_df = pd.read_sql(
+            """
+            SELECT *
+            FROM eventos
+            ORDER BY data DESC, nome
+            """,
+            conn
+        )
+
+        projetos_df = pd.read_sql(
+            """
+            SELECT *
+            FROM projetos
+            ORDER BY nome
+            """,
+            conn
+        )
+
+        projeto_dict = {}
+        projeto_nomes = []
+
+        if not projetos_df.empty:
+            projeto_dict = dict(
+                zip(
+                    projetos_df["nome"],
+                    projetos_df["id"]
+                )
+            )
+
+            projeto_nomes = list(
+                projeto_dict.keys()
+            )
+
+        if eventos_df.empty:
 
             st.info(
-                "Nenhum integrante cadastrado."
+                "Nenhum evento cadastrado."
             )
 
         else:
 
-            for _, row in pessoas_df.iterrows():
+            for _, row in eventos_df.iterrows():
 
-                with st.expander(
+                titulo = (
+                    f"{row['data']} - "
                     f"{row['nome']}"
-                ):
+                )
 
-                    st.write(
-                        f"📧 {row['email']}"
+                with st.expander(titulo):
+
+                    nome_edit = st.text_input(
+                        "Nome",
+                        value=row["nome"],
+                        key=f"ev_nome_{row['id']}"
                     )
 
-                    st.write(
-                        f"🏷️ {row['funcao']}"
+                    data_edit = st.date_input(
+                        "Data",
+                        value=pd.to_datetime(
+                            row["data"]
+                        ),
+                        key=f"ev_data_{row['id']}"
                     )
 
-                    if st.button(
-                        "🗑️ Excluir integrante",
-                        key=f"del_pessoa_{row['id']}"
-                    ):
+                    local_edit = st.text_input(
+                        "Local",
+                        value=row["local"] or "",
+                        key=f"ev_local_{row['id']}"
+                    )
 
-                        c.execute(
-                            """
-                            DELETE FROM pessoas
-                            WHERE id = ?
-                            """,
-                            (row["id"],)
+                    descricao_edit = st.text_area(
+                        "Descrição",
+                        value=row["descricao"] or "",
+                        key=f"ev_desc_{row['id']}"
+                    )
+
+                    projeto_nome = None
+
+                    if projeto_nomes:
+
+                        indice = 0
+
+                        if row["projeto_id"] is not None:
+
+                            for i, nome_proj in enumerate(
+                                projeto_nomes
+                            ):
+                                if (
+                                    projeto_dict[nome_proj]
+                                    == row["projeto_id"]
+                                ):
+                                    indice = i
+                                    break
+
+                        projeto_nome = st.selectbox(
+                            "Projeto",
+                            projeto_nomes,
+                            index=indice,
+                            key=f"ev_proj_{row['id']}"
                         )
 
-                        conn.commit()
+                    col1, col2 = st.columns(2)
 
-                        st.success(
-                            "Integrante removido."
-                        )
+                    # -------------------------
+                    # SALVAR
+                    # -------------------------
+                    with col1:
 
-                        st.rerun()
+                        if st.button(
+                            "💾 Salvar",
+                            key=f"save_evento_{row['id']}"
+                        ):
 
-# =====================================================
-# 📁 PROJETOS
-# =====================================================
-with st.expander(
-    "📁 Projetos",
-    expanded=False
-):
+                            projeto_id = None
 
-    nome = st.text_input(
-        "Nome do Projeto",
-        key="proj_nome"
-    )
+                            if (
+                                projeto_nome
+                                and projeto_nome
+                                in projeto_dict
+                            ):
+                                projeto_id = (
+                                    projeto_dict[
+                                        projeto_nome
+                                    ]
+                                )
 
-    cor = st.color_picker(
-        "Cor",
-        "#3788d8",
-        key="proj_cor"
-    )
+                            c.execute(
+                                """
+                                UPDATE eventos
+                                SET
+                                    nome = ?,
+                                    data = ?,
+                                    local = ?,
+                                    descricao = ?,
+                                    projeto_id = ?
+                                WHERE id = ?
+                                """,
+                                (
+                                    nome_edit.strip(),
+                                    str(data_edit),
+                                    local_edit.strip(),
+                                    descricao_edit.strip(),
+                                    projeto_id,
+                                    row["id"]
+                                )
+                            )
 
-    if st.button(
-        "Salvar Projeto",
-        key="btn_salvar_projeto"
-    ):
+                            conn.commit()
 
-        if not nome.strip():
+                            st.success(
+                                "Evento atualizado."
+                            )
 
-            st.warning(
-                "Informe o nome do projeto."
+                            st.rerun()
+
+                    # -------------------------
+                    # EXCLUIR
+                    # -------------------------
+                    with col2:
+
+                        if (
+                            st.session_state
+                            .confirmar_exclusao_evento
+                            == row["id"]
+                        ):
+
+                            st.warning(
+                                "Tem certeza?"
+                            )
+
+                            col_conf1, col_conf2 = (
+                                st.columns(2)
+                            )
+
+                            with col_conf1:
+
+                                if st.button(
+                                    "✅ Confirmar",
+                                    key=f"confirm_del_{row['id']}"
+                                ):
+
+                                    c.execute(
+                                        """
+                                        DELETE FROM eventos
+                                        WHERE id = ?
+                                        """,
+                                        (row["id"],)
+                                    )
+
+                                    conn.commit()
+
+                                    if (
+                                        st.session_state.evento_id
+                                        == row["id"]
+                                    ):
+                                        st.session_state.evento_id = None
+
+                                    st.session_state.confirmar_exclusao_evento = None
+
+                                    st.success(
+                                        "Evento excluído."
+                                    )
+
+                                    st.rerun()
+
+                            with col_conf2:
+
+                                if st.button(
+                                    "Cancelar",
+                                    key=f"cancel_del_{row['id']}"
+                                ):
+
+                                    st.session_state.confirmar_exclusao_evento = None
+
+                                    st.rerun()
+
+                        else:
+
+                            if st.button(
+                                "🗑️ Excluir",
+                                key=f"del_evento_{row['id']}"
+                            ):
+
+                                st.session_state.confirmar_exclusao_evento = (
+                                    row["id"]
+                                )
+
+                                st.rerun()
+
+    # =================================================
+    # ➕ CADASTRO
+    # =================================================
+    with tab2:
+
+        nome = st.text_input(
+            "Nome do Evento",
+            key="novo_nome"
+        )
+
+        data = st.date_input(
+            "Data",
+            key="novo_data"
+        )
+
+        local = st.text_input(
+            "Local",
+            key="novo_local"
+        )
+
+        descricao = st.text_area(
+            "Descrição",
+            key="novo_desc"
+        )
+
+        projetos = pd.read_sql(
+            """
+            SELECT *
+            FROM projetos
+            ORDER BY nome
+            """,
+            conn
+        )
+
+        projeto_dict = {}
+        projeto_nome = None
+
+        if not projetos.empty:
+
+            projeto_dict = dict(
+                zip(
+                    projetos["nome"],
+                    projetos["id"]
+                )
+            )
+
+            projeto_nome = st.selectbox(
+                "Projeto",
+                list(projeto_dict.keys()),
+                key="novo_projeto"
             )
 
         else:
 
-            try:
+            st.info(
+                "Nenhum projeto cadastrado. "
+                "O evento será criado sem projeto."
+            )
+
+        if st.button(
+            "Salvar Evento",
+            key="btn_salvar_evento_novo"
+        ):
+
+            if not nome.strip():
+
+                st.warning(
+                    "Informe o nome do evento."
+                )
+
+            else:
+
+                projeto_id = None
+
+                if (
+                    projeto_nome
+                    and projeto_nome
+                    in projeto_dict
+                ):
+                    projeto_id = (
+                        projeto_dict[
+                            projeto_nome
+                        ]
+                    )
 
                 c.execute(
                     """
-                    INSERT INTO projetos (
+                    INSERT INTO eventos (
                         nome,
-                        cor
+                        data,
+                        local,
+                        descricao,
+                        projeto_id
                     )
-                    VALUES (?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
                     (
                         nome.strip(),
-                        cor
+                        str(data),
+                        local.strip(),
+                        descricao.strip(),
+                        projeto_id
                     )
                 )
 
                 conn.commit()
 
                 st.success(
-                    "Projeto cadastrado."
+                    "Evento criado."
                 )
 
                 st.rerun()
 
-            except sqlite3.IntegrityError:
 
-                st.warning(
-                    "Já existe um projeto "
-                    "com este nome."
-                )
-
-# =====================================================
-# 📌 NOVO EVENTO
-# =====================================================
-with st.expander(
-    "📌 Novo Evento",
-    expanded=False
-):
-
-    nome = st.text_input(
-        "Nome do Evento",
-        key="novo_nome"
-    )
-
-    data = st.date_input(
-        "Data",
-        key="novo_data"
-    )
-
-    local = st.text_input(
-        "Local",
-        key="novo_local"
-    )
-
-    descricao = st.text_area(
-        "Descrição",
-        key="novo_desc"
-    )
-
-    projetos = pd.read_sql(
-        """
-        SELECT *
-        FROM projetos
-        ORDER BY nome
-        """,
-        conn
-    )
-
-    projeto_dict = {}
-    projeto_nome = None
-
-    if not projetos.empty:
-
-        projeto_dict = dict(
-            zip(
-                projetos["nome"],
-                projetos["id"]
-            )
-        )
-
-        projeto_nome = st.selectbox(
-            "Projeto",
-            list(projeto_dict.keys()),
-            key="novo_projeto"
-        )
-
-    else:
-
-        st.info(
-            "Nenhum projeto cadastrado. "
-            "O evento poderá ser criado "
-            "sem projeto."
-        )
-
-    if st.button(
-        "Salvar Evento",
-        key="btn_salvar_evento_novo"
-    ):
-
-        if not nome.strip():
-
-            st.warning(
-                "Informe o nome do evento."
-            )
-
-        else:
-
-            c.execute(
-                """
-                INSERT INTO eventos (
-                    nome,
-                    data,
-                    local,
-                    descricao,
-                    projeto_id
-                )
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    nome.strip(),
-                    str(data),
-                    local.strip(),
-                    descricao.strip(),
-                    projeto_dict.get(
-                        projeto_nome
-                    )
-                    if projeto_nome
-                    else None
-                )
-            )
-
-            conn.commit()
-
-            st.success(
-                "Evento criado."
-            )
-
-            st.rerun()
 
 
 
